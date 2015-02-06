@@ -24,7 +24,7 @@ cors = CORS(app)
 client = MongoClient("127.0.0.1", 27017)
 db = client.tempdata
 readingsCollection = db.temps
-
+sensorsCollection = db.sensors
 
 
 #-----------------------------#
@@ -98,6 +98,20 @@ def readings():
     print time.asctime(endDateTime)
 
     return getReadings(time.mktime(startDateTime), time.mktime(endDateTime))
+
+@app.route('/api/sensors', methods=['GET'])
+def sensors():
+    result = createJsonList('sensors')
+    allSensors = sensorsCollection.find()
+    count = 0
+    for sensor in allSensors:
+        if count==0:
+            result = jsonListAppend(result, sensor, False)
+        else:
+            result = jsonListAppend(result,sensor)
+        count+=1
+    return result
+
 
 
 
