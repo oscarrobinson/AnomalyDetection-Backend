@@ -112,8 +112,36 @@ def sensors():
         count+=1
     return result
 
+@app.route('/api/thresholds/get', methods=['GET'])
+def thresholdsGet():
+    network = request.args.get('network', '')
+    thresholdVals = db.thresholds.find({"network":network})
+    for threshold in thresholdVals:    
+        return json.dumps(threshold, sort_keys=True, indent=4, separators=(',', ': '), default=json_util.default)
+    else:
+        return "{}"
 
-
+@app.route('/api/thresholds/set', methods=['POST'])
+def thresholdsSet():
+    dataToAdd = dict()
+    json = request.get_json()
+    try:
+        json["network"]
+    except:
+        abort(400)
+    try: 
+        json["amber"]
+        dataToAdd = {"amber": float(json["amber"])}
+    except:
+        pass
+    try:
+        json["red"]
+        dataToAdd.update({"red": float(json["red"])})
+    except:
+        pass
+    dataToAdd.update({"lastUpdated": int(time.time())})
+    db.thresholds.update({"network": json["network"]}, {"$set": dataToAdd})
+    return "Set Thresholds Successfully for "+str(json["network"])
 
 #-----------------------------#
 #           INIT API          #
