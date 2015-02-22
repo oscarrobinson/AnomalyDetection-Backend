@@ -50,9 +50,12 @@ def jsonListAppend(jList, listItem, comma=True):
         return jList[:-2]+(json.dumps(listItem, sort_keys=True, indent=4, separators=(',', ': '), default=json_util.default))+"]}"
 
 
-def getReadings(startTime, endTime):
+def getReadings(startTime, endTime, feedbackOnly):
     result = createJsonList("readings")
-    allReadings = readingsCollection.find({"time": {"$gt": str(startTime), "$lt": str(endTime)}})
+    if feedbackOnly==1:
+        allReadings = readingsCollection.find({"time": {"$gt": str(startTime), "$lt": str(endTime)}, "feedback": {"$exists": True}})
+    else:
+        allReadings = readingsCollection.find({"time": {"$gt": str(startTime), "$lt": str(endTime)}})
     count = 0
     for reading in allReadings:
         if count==0:
@@ -71,33 +74,46 @@ def getReadings(startTime, endTime):
 def readingsUnixTime():
     startTime = request.args.get('start', '')
     endTime = request.args.get('end', '')
+    feedbackOnly = request.args.get('feedbackOnly', '')
+    try:
+        if feedbackOnly:
+            feedbackOnly = int(feedbackOnly)
+            assert (feedbackOnly==1 or feedbackOnly==0)
+        else:
+            feedbackOnly = 0
+    except Exception:
+        abort(400)
     if not startTime:
         startTime = time.time()-86400
     if not endTime:
         endTime = time.time()
-    return getReadings(startTime, endTime)
+    return getReadings(startTime, endTime, feedbackOnly)
 
 @app.route('/api/readings', methods=['GET'])
 def readings():
-    #1-12-1994-12:12
     startTime = request.args.get('start', '')
     endTime = request.args.get('end', '')
+    feedbackOnly = request.args.get('feedbackOnly', '')
     try:
         if startTime:
-            startDateTime =  time.strptime(startTime, "%d-%m-%Y-%H:%M")
+            startDateTime = time.strptime(startTime, "%d-%m-%Y-%H:%M")
         else:
             startDateTime = time.strptime(time.ctime(time.time()-86400))
         if endTime:
             endDateTime = time.strptime(endTime, "%d-%m-%Y-%H:%M")
         else:
             endDateTime = time.strptime(time.ctime())
+        if feedbackOnly:
+            feedbackOnly = int(feedbackOnly)
+            assert (feedbackOnly==1 or feedbackOnly==0)
+        else:
+            feedbackOnly = 0
     except Exception:
         abort(400)
-
     print time.asctime(startDateTime)
     print time.asctime(endDateTime)
 
-    return getReadings(time.mktime(startDateTime), time.mktime(endDateTime))
+    return getReadings(time.mktime(startDateTime), time.mktime(endDateTime), feedbackOnly)
 
 @app.route('/api/sensors', methods=['GET'])
 def sensors():
@@ -116,7 +132,7 @@ def sensors():
 def thresholdsGet():
     network = request.args.get('network', '')
     thresholdVals = db.thresholds.find({"network":network})
-    for threshold in thresholdVals:    
+    for threshold in thresholdVals:
         return json.dumps(threshold, sort_keys=True, indent=4, separators=(',', ': '), default=json_util.default)
     else:
         return "{}"
@@ -129,19 +145,37 @@ def thresholdsSet():
         json["network"]
     except:
         abort(400)
-    try: 
+    try:
         json["amber"]
-        dataToAdd = {"amber": float(json["amber"])}
+        dataToAdd.update({"amber": float(json["amber"])})
     except:
         pass
     try:
-        json["red"]
         dataToAdd.update({"red": float(json["red"])})
     except:
         pass
     dataToAdd.update({"lastUpdated": int(time.time())})
     db.thresholds.update({"network": json["network"]}, {"$set": dataToAdd})
     return "Set Thresholds Successfully for "+str(json["network"])
+
+@app.route('/api/feedback', methods=['POST'])
+def feedback():
+    dataToAdd = dict()
+    time= ""
+    json = request.get_json()
+    try:
+        dataToAdd.update({"feedback": str(json["feedback"])})
+        if not (str(json["feedback"])=="red" or str(json["feedback"])=="amber" or str(json["feedback"])=="green"):
+            abort(400)
+    except:
+        abort(400)
+    try:
+        time = json["time"]
+    except:
+        abort(400)
+    readingsCollection.update({"time": str(time)}, {"$set": dataToAdd})
+    return "Updated Feedback for "+str(time)
+
 
 #-----------------------------#
 #           INIT API          #
