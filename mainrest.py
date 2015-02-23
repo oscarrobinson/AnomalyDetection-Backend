@@ -140,7 +140,7 @@ def thresholdsGet():
 @app.route('/api/thresholds/set', methods=['POST'])
 def thresholdsSet():
     dataToAdd = dict()
-    json = request.get_json()
+    json = request.get_json(force=True)
     try:
         json["network"]
     except:
@@ -162,9 +162,11 @@ def thresholdsSet():
 def feedbackSet():
     dataToAdd = dict()
     time= ""
-    json = request.get_json()
+    json = request.get_json(force=True)
+    print json
     try:
         dataToAdd.update({"feedback": str(json["feedback"])})
+        print json["feedback"]
         if not (str(json["feedback"])=="red" or str(json["feedback"])=="amber" or str(json["feedback"])=="green"):
             abort(400)
     except:
