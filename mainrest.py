@@ -159,7 +159,7 @@ def thresholdsSet():
     return "Set Thresholds Successfully for "+str(json["network"])
 
 @app.route('/api/feedback', methods=['POST'])
-def feedback():
+def feedbackSet():
     dataToAdd = dict()
     time= ""
     json = request.get_json()
@@ -175,6 +175,16 @@ def feedback():
         abort(400)
     readingsCollection.update({"time": str(time)}, {"$set": dataToAdd})
     return "Updated Feedback for "+str(time)
+
+@app.route('/api/readings/getone', methods=['GET'])
+def getOneReading():
+    time = request.args.get('time', '')
+    if not time:
+        abort(400);
+    cursor = readingsCollection.find({"time": str(time)})
+    for reading in cursor:    
+        return json.dumps(reading, sort_keys=True, indent=4, separators=(',', ': '), default=json_util.default)
+    return "No Reading for time "+time
 
 
 #-----------------------------#
