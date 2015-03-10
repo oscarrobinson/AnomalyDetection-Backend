@@ -187,6 +187,48 @@ def getOneReading():
     return "No Reading for time "+time
 
 
+@app.route('/api/notifications/get', methods=['GET'])
+def getNotifications():
+    numOnly = request.args.get('basic', '')
+    #check numOnly exists
+    if numOnly:
+        try:
+            numOnly = bool(numOnly)
+            #it exists, check it's true
+            if numOnly:
+                numRed = db.temps.find({"classification": "red", "userSeen": False}).count()
+                numAmber = db.temps.find({"classification": "amber", "userSeen": False}).count()
+                print "Red: "+str(numRed)+" || Amber: "+str(numAmber)
+                return '{ "red":'+str(numRed)+', "amber":'+str(numAmber)+'}'
+
+        except:
+            abort(400)
+    #otherwise return all of the info we need
+    notifications = db.temps.find({"userSeen": False, "classification": {"$ne": "green"}})
+    notificationsList = createJsonList("notifications")
+    count=0
+    for notification in notifications:
+        if count==0:
+            notificationsList = jsonListAppend(notificationsList, notification, False)
+        else:
+            notificationsList = jsonListAppend(notificationsList, notification)
+        count+=1
+    return notificationsList
+
+
+@app.route('/api/notifications/set', methods=['POST'])
+def setNotifications():
+    time= ""
+    json = request.get_json(force=True)
+    try:
+        notificationTimesList = json["times"]
+        for time in notificationTimesList:
+            db.temps.update({"time":str(time)}, {"$set": {"userSeen": True}})
+    except:
+        abort(400)
+    return "Success"
+
+
 #-----------------------------#
 #           INIT API          #
 #-----------------------------#
